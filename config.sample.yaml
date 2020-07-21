@@ -1,0 +1,5 @@
+sets:
+  dns_ip:
+    table: input
+    plugin: resolv
+    strategy: replace
