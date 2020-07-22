@@ -56,6 +56,8 @@ class SetManager(object):
 
     def update_set(self, set_name, elements):
         config = self.get_set_config(set_name)
+        if elements is False:
+            self.logger.warning('Plugin %s returned without updating elements, skiping update' % config['plugin'])
         for element in elements:
             self.nftables_set.set_operation('add', config['family'], config['table'], set_name, element)
         current_set = set(self.nftables_set.get_set_elements(config['family'], config['table'], set_name))
