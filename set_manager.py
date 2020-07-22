@@ -43,7 +43,7 @@ class SetManager(object):
 
     def fetch_set_elements(self, set_name):
         config = self.get_set_config(set_name)
-        self.logger.debug("Updating set '%s' with config: %s" % (set_name, json.dumps(config)))
+        self.logger.info("Updating set '%s' with config: %s" % (set_name, json.dumps(config)))
         plugin = self.load_plugin(config['plugin'])
         metadata = 'metadata' in config and config['metadata'] or {}
         try:
@@ -65,7 +65,7 @@ class SetManager(object):
         if config['strategy'] == 'update':
             self.remove_expired_elements(set_name, elements)
         final_set = self.nftables_set.get_set_elements(config['family'], config['table'], set_name)
-        self.logger.debug("Final values for set %s: %s" % (set_name, json.dumps(final_set)))
+        self.logger.info("Final values for set %s: %s" % (set_name, json.dumps(final_set)))
 
     def remove_expired_elements(self, set_name, elements):
         config = self.get_set_config(set_name)
@@ -84,7 +84,7 @@ class SetManager(object):
 
     def update_sets(self):
         if not self.sets:
-            self.logger.debug("No sets passed, updating all sets")
+            self.logger.info("No sets passed, updating all sets")
             self.sets = self.get_all_sets()
         for set_name in self.sets:
             if set_name in self.config['sets']:
