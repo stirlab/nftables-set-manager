@@ -1,6 +1,6 @@
 # nftables-set-manager
 
-This is a small set of scripts and modules that ease management of named set in [nftables](https://wiki.nftables.org)
+This is a small set of scripts and modules that ease management of named sets in [nftables](https://wiki.nftables.org)
 
 ### Overview
 
@@ -19,7 +19,7 @@ Several plugins come with the pagkage:
  * dns: Gets the IP address(es) of a hostname
  * apt_mirrors: Gets IP addresses for a list of Apt mirrors
 
-...and it's easy to write additional ones for your needs:
+...and it's easy to write additional ones for your needs.
 
 ### Usage
 
