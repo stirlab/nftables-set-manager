@@ -17,7 +17,7 @@ Several plugins come with the pagkage:
 
  * resolv: Extracts IP elements for nameservers from ```/etc/resolv.conf```
  * dns: Gets the IP address(es) of a hostname
- * apt_mirrors: Gets IP addresses for a list of Apt mirrors
+ * apt_list: Gets IP addresses for all Apt sources files
 
 ...and it's easy to write additional ones for your needs.
 
