@@ -5,7 +5,7 @@ import logging
 import importlib.util
 import json
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 class SetManager(object):
 
