@@ -6,7 +6,7 @@ import importlib.util
 import json
 from nftables_set import NftablesSet
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 
 class SetManager(object):
 

@@ -2,7 +2,7 @@ import subprocess
 import logging
 import json
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 
 class NftablesSet(object):
 
