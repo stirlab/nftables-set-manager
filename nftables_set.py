@@ -13,28 +13,28 @@ class NftablesSet(object):
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
 
-    def set_operation(self, op, set_type, set_table, set_name, value):
-        self.logger.debug("Operation: %s, on set '%s %s %s', value: %s" % (op, set_type, set_table, set_name, value))
+    def set_operation(self, op, set_family, set_table, set_name, value):
+        self.logger.debug("Operation: %s, on set '%s %s %s', value: %s" % (op, set_family, set_table, set_name, value))
         self.run([
             op,
             'element',
-            set_type,
+            set_family,
             set_table,
             set_name,
             '{ %s }' % value,
         ], capture_output=False)
 
-    def get_set_elements(self, set_type, set_table, set_name):
+    def get_set_elements(self, set_family, set_table, set_name):
         data = self.run([
             'list',
             'set',
-            set_type,
+            set_family,
             set_table,
             set_name,
         ])
         set_data = data[0]['set']
         elements = 'elem' in set_data and set_data['elem'] or []
-        self.logger.debug("Elements for set '%s %s %s': %s" % (set_type, set_table, set_name, json.dumps(elements)))
+        self.logger.debug("Elements for set '%s %s %s': %s" % (set_family, set_table, set_name, json.dumps(elements)))
         return elements
 
     def run(self, command_args, capture_output=True):

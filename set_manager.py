@@ -57,15 +57,15 @@ class SetManager(object):
     def update_set(self, set_name, elements):
         config = self.get_set_config(set_name)
         for element in elements:
-            self.nftables_set.set_operation('add', config['type'], config['table'], set_name, element)
-        current_set = set(self.nftables_set.get_set_elements(config['type'], config['table'], set_name))
+            self.nftables_set.set_operation('add', config['family'], config['table'], set_name, element)
+        current_set = set(self.nftables_set.get_set_elements(config['family'], config['table'], set_name))
         if config['strategy'] == 'replace':
             self.logger.debug("Replace strategy for set %s, removing old elements" % set_name)
             new_set = set(elements)
             to_remove = list(current_set.difference(new_set))
             for element in to_remove:
-                self.nftables_set.set_operation('delete', config['type'], config['table'], set_name, element)
-        final_set = self.nftables_set.get_set_elements(config['type'], config['table'], set_name)
+                self.nftables_set.set_operation('delete', config['family'], config['table'], set_name, element)
+        final_set = self.nftables_set.get_set_elements(config['family'], config['table'], set_name)
         self.logger.debug("Final values for set %s: %s" % (set_name, json.dumps(final_set)))
 
     def get_set_config(self, set_name):
