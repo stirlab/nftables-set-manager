@@ -6,6 +6,8 @@ sets:
     # The table name.
     table: input
     # The plugin used to generate the updated list of elements for the set.
+    # Must be the filename of the plugin in the plugin directory, without
+    # the extension.
     plugin: resolv
     # The strategy for the update, one of:
     #   add: Only add new elements
