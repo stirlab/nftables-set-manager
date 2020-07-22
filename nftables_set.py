@@ -31,7 +31,7 @@ class NftablesSet(object):
                 set_family,
                 set_table,
                 set_name,
-                '{ %s }' % ','.join(elements),
+                '{ %s }' % ', '.join(elements),
             ]
         self.logger.debug("Operation: %s, on set '%s %s %s', elements: %s" % (op, set_family, set_table, set_name, json.dumps(elements)))
         self.run(command, capture_output=False)
