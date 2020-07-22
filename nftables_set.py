@@ -14,14 +14,15 @@ class NftablesSet(object):
             self.logger.setLevel(logging.DEBUG)
 
     def set_operation(self, op, set_type, set_table, set_name, value):
+        self.logger.debug("Operation: %s, on set '%s %s %s', value: %s" % (op, set_type, set_table, set_name, value))
         self.run([
             op,
             'element',
             set_type,
             set_table,
-            set_filter,
+            set_name,
             '{ %s }' % value,
-        ])
+        ], capture_output=False)
 
     def get_set_elements(self, set_type, set_table, set_name):
         data = self.run([
@@ -29,17 +30,19 @@ class NftablesSet(object):
             'set',
             set_type,
             set_table,
-            set_filter,
+            set_name,
         ])
         set_data = data[0]['set']
-        return 'elem' in set_data and set_data['elem'] or []
+        elements = 'elem' in set_data and set_data['elem'] or []
+        self.logger.debug("Elements for set '%s %s %s': %s" % (set_type, set_table, set_name, json.dumps(elements)))
+        return elements
 
     def run(self, command_args, capture_output=True):
         command = [
             'nft',
             '-j',
         ]
-        command.append(command_args)
+        command.extend(command_args)
         kwargs = {}
         if capture_output:
             kwargs.update({
@@ -47,6 +50,7 @@ class NftablesSet(object):
                 'stderr': subprocess.PIPE,
                 'universal_newlines': True,
             })
+        self.logger.debug("Running command: %s" % ' '.join(command))
         try:
             proc = subprocess.Popen(command, **kwargs)
             stdout, stderr = proc.communicate()
@@ -56,7 +60,7 @@ class NftablesSet(object):
             stderr = e.message if hasattr(e, 'message') else str(e)
             returncode = 1
         if returncode != 0:
-            raise RuntimeError("Failed command '%s': %s", % (' '.join(command), stderr))
+            raise RuntimeError("Failed command '%s': %s" % (' '.join(command), stderr))
         if capture_output:
             data = json.loads(stdout)
             return data['nftables']

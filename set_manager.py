@@ -4,6 +4,7 @@ import os
 import logging
 import importlib.util
 import json
+from nftables_set import NftablesSet
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -15,6 +16,7 @@ class SetManager(object):
         self.sets = self.args.sets
         self.plugin_dir = args.plugin_dir
         self.plugin_cache = {}
+        self.nftables_set = NftablesSet(self.args, self.config)
         self.logger = logging.getLogger(self.__class__.__name__)
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
@@ -39,8 +41,8 @@ class SetManager(object):
             }
         return self.plugin_cache[plugin]
 
-    def update_set(self, set_name):
-        config = self.config['sets'][set_name]
+    def fetch_set_elements(self, set_name):
+        config = self.get_set_config(set_name)
         self.logger.debug("Updating set '%s' with config: %s" % (set_name, json.dumps(config)))
         plugin = self.load_plugin(config['plugin'])
         metadata = 'metadata' in config and config['metadata'] or {}
@@ -52,6 +54,23 @@ class SetManager(object):
         except Exception as e: # work on python 3.x
             self.logger.error('Failed to get elements for set %s: %s' % (set_name, str(e)))
 
+    def update_set(self, set_name, elements):
+        config = self.get_set_config(set_name)
+        for element in elements:
+            self.nftables_set.set_operation('add', config['type'], config['table'], set_name, element)
+        current_set = set(self.nftables_set.get_set_elements(config['type'], config['table'], set_name))
+        if config['strategy'] == 'replace':
+            self.logger.debug("Replace strategy for set %s, removing old elements" % set_name)
+            new_set = set(elements)
+            to_remove = list(current_set.difference(new_set))
+            for element in to_remove:
+                self.nftables_set.set_operation('delete', config['type'], config['table'], set_name, element)
+        final_set = self.nftables_set.get_set_elements(config['type'], config['table'], set_name)
+        self.logger.debug("Final values for set %s: %s" % (set_name, json.dumps(final_set)))
+
+    def get_set_config(self, set_name):
+        return self.config['sets'][set_name]
+
     def get_all_sets(self):
         return self.config['sets'].keys()
 
@@ -59,8 +78,9 @@ class SetManager(object):
         if not self.sets:
             self.logger.debug("No sets passed, updating all sets")
             self.sets = self.get_all_sets()
-        for _set in self.sets:
-            if _set in self.config['sets']:
-                self.update_set(_set)
+        for set_name in self.sets:
+            if set_name in self.config['sets']:
+                elements = self.fetch_set_elements(set_name)
+                self.update_set(set_name, elements)
             else:
-                raise KeyError("Invalid set: %s" % _set)
+                raise KeyError("Invalid set: %s" % set_name)
