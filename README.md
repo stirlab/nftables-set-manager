@@ -19,6 +19,7 @@ Several plugins come with the pagkage:
  * dns: Gets the IP address(es) of a hostname (requires berserker_resolver package)
  * apt_list: Gets IP addresses for all Apt sources files (requires berserker_resolver package)
  * s3_ips: Gets IP addresses for AWS S3 regions
+ * google_cloud_ips: Gets IP addresses for Google Cloud services
 
 ...and it's easy to write additional ones for your needs.
 
