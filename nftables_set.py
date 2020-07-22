@@ -13,16 +13,28 @@ class NftablesSet(object):
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
 
-    def set_operation(self, op, set_family, set_table, set_name, value):
-        self.logger.debug("Operation: %s, on set '%s %s %s', value: %s" % (op, set_family, set_table, set_name, value))
-        self.run([
-            op,
-            'element',
-            set_family,
-            set_table,
-            set_name,
-            '{ %s }' % value,
-        ], capture_output=False)
+    def set_operation(self, op, set_family, set_table, set_name, elements=None):
+        if op == 'flush':
+            command = [
+                op,
+                'set',
+                set_family,
+                set_table,
+                set_name,
+            ]
+        else:
+            if isinstance(elements, str):
+                elements = [elements]
+            command = [
+                op,
+                'element',
+                set_family,
+                set_table,
+                set_name,
+                '{ %s }' % ','.join(elements),
+            ]
+        self.logger.debug("Operation: %s, on set '%s %s %s', elements: %s" % (op, set_family, set_table, set_name, json.dumps(elements)))
+        self.run(command, capture_output=False)
 
     def get_set_elements(self, set_family, set_table, set_name):
         data = self.run([

@@ -58,17 +58,23 @@ class SetManager(object):
         config = self.get_set_config(set_name)
         if elements is False:
             self.logger.warning('Plugin %s returned without updating elements, skiping update' % config['plugin'])
-        for element in elements:
-            self.nftables_set.set_operation('add', config['family'], config['table'], set_name, element)
-        current_set = set(self.nftables_set.get_set_elements(config['family'], config['table'], set_name))
         if config['strategy'] == 'replace':
-            self.logger.debug("Replace strategy for set %s, removing old elements" % set_name)
-            new_set = set(elements)
-            to_remove = list(current_set.difference(new_set))
-            for element in to_remove:
-                self.nftables_set.set_operation('delete', config['family'], config['table'], set_name, element)
+            self.nftables_set.set_operation('flush', config['family'], config['table'], set_name)
+        if len(elements) > 0:
+            self.nftables_set.set_operation('add', config['family'], config['table'], set_name, elements)
+        if config['strategy'] == 'update':
+            self.remove_expired_elements(set_name, elements)
         final_set = self.nftables_set.get_set_elements(config['family'], config['table'], set_name)
         self.logger.debug("Final values for set %s: %s" % (set_name, json.dumps(final_set)))
+
+    def remove_expired_elements(self, set_name, elements):
+        config = self.get_set_config(set_name)
+        self.logger.debug("Replace strategy for set %s, removing old elements" % set_name)
+        current_set = set(self.nftables_set.get_set_elements(config['family'], config['table'], set_name))
+        new_set = set(elements)
+        to_remove = list(current_set.difference(new_set))
+        if len(to_remove) > 0:
+            self.nftables_set.set_operation('delete', config['family'], config['table'], set_name, to_remove)
 
     def get_set_config(self, set_name):
         return self.config['sets'][set_name]
