@@ -1,5 +1,17 @@
 sets:
+  # The name of the set as it appears in nftables.
   dns_ip:
+    # The table family.
+    family: inet
+    # The table name.
     table: input
+    # The plugin used to generate the updated list of elements for the set.
     plugin: resolv
+    # The strategy for the update, one of:
+    #   add: Only add new elements
+    #   replace: Replace the old elements with the new
     strategy: replace
+    # Metadata is data that gets passed directly to the instance of the plugin
+    # that will generate the new elements.
+    netadata:
+      foo: bar
