@@ -12,9 +12,9 @@ DEFAULT_PLUGIN_DIR = "%s/plugins" % DEFAULT_SCRIPT_DIR
 def main():
     parser = argparse.ArgumentParser(description="Manage nftables sets")
     parser.add_argument("--debug", action='store_true', help="Enable debugging")
-    parser.add_argument("--sets", action='store', type=str, nargs='+', help="Sets to update. Default is to update all sets in the configuration file")
+    parser.add_argument("--sets", action='store', metavar="SET", type=str, nargs='+', help="Sets to update. Default is to update all sets in the configuration file")
     parser.add_argument("--config-file", type=str, metavar="FILE", default=DEFAULT_CONFIG_FILE, help="Configuration filepath, default: %s" % DEFAULT_CONFIG_FILE)
-    parser.add_argument("--plugin-dir", type=str, metavar="FILE", default=DEFAULT_PLUGIN_DIR, help="Directory that contains plugins, default: %s")
+    parser.add_argument("--plugin-dir", type=str, metavar="FILE", default=DEFAULT_PLUGIN_DIR, help="Directory that contains plugins, default: %s" % DEFAULT_PLUGIN_DIR)
     args = parser.parse_args()
     with open(args.config_file, 'r') as stream:
         try:
