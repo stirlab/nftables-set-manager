@@ -1,7 +1,8 @@
-import socket
 import json
 from aptsources.sourceslist import SourcesList
 from urllib.parse import urlparse
+from berserker_resolver import Resolver
+from plugins.resolv import GetElements as ResolvGetElements
 
 class GetElements(object):
 
@@ -10,6 +11,8 @@ class GetElements(object):
         self.metadata = metadata
         self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
         self.ignore_hosts = 'ignore_hosts' in metadata and metadata['ignore_hosts'] or []
+        self.nameservers = ResolvGetElements(logger, metadata).get_unix_dns_ips()
+        self.resolver = Resolver(nameservers=self.nameservers)
 
     def get_elements(self):
         elements = []
@@ -19,13 +22,13 @@ class GetElements(object):
             else:
                 self.logger.debug("Looking up IP for hostname: %s" % hostname)
                 try:
-                    ip = self.get_hostname_ip(hostname)
-                except socket.gaierror:
+                    ips = self.get_hostname_ips(hostname)
+                except Exception as err:
                     if self.ignore_missing_hosts:
                         pass
                     else:
-                        raise RuntimeError("Invalid hostname: %s" % hostname)
-                elements.append(ip)
+                        raise RuntimeError("Could not retrieve IPs for hostname %s: %s" % (hostname, err))
+                elements.extend(ips)
         return elements
 
     def get_unique_hosts_from_apt_list(self):
@@ -36,5 +39,6 @@ class GetElements(object):
         self.logger.debug("Parsed unique hosts from apt lists: %s" % json.dumps(unique_hosts))
         return unique_hosts
 
-    def get_hostname_ip(self, hostname):
-        return socket.gethostbyname(hostname)
+    def get_hostname_ips(self, hostname):
+        result = self.resolver.query(hostname)
+        return [elem.to_text() for elem in result]
