@@ -2,9 +2,11 @@ import socket
 
 class GetElements(object):
 
-    def __init__(self, logger, metadata):
-        self.logger = logger
+    def __init__(self, metadata, logger, config, args):
         self.metadata = metadata
+        self.logger = logger
+        self.config = config
+        self.args = args
 
     def get_elements(self):
         return self.get_unix_dns_ips()

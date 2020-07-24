@@ -1,3 +1,10 @@
+# List of additional nameservers that the resolver will use.
+# Optional, the resolver will always use the nameservers listed
+# in /etc/resolv.conf, and these addtional ones if provided.
+dns_nameservers:
+  - 1.1.1.1
+  - 8.8.8.8
+  - 9.9.9.9
 sets:
   # The name of the set as it appears in nftables.
   dns_ip:

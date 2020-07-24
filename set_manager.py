@@ -18,6 +18,8 @@ class SetManager(object):
         self.plugin_cache = {}
         self.nftables_set = NftablesSet(self.args, self.config)
         self.logger = logging.getLogger(self.__class__.__name__)
+        if self.args.quiet:
+            self.logger.setLevel(logging.ERROR)
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
 
@@ -47,7 +49,7 @@ class SetManager(object):
         plugin = self.load_plugin(config['plugin'])
         metadata = 'metadata' in config and config['metadata'] or {}
         try:
-            instance = plugin['class'](plugin['logger'], metadata)
+            instance = plugin['class'](metadata, plugin['logger'], self.config, self.args)
             elements = instance.get_elements()
             self.logger.debug("Got elements for set '%s': %s" % (set_name, json.dumps(elements)))
             return elements

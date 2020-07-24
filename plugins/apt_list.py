@@ -6,13 +6,16 @@ from plugins.resolv import GetElements as ResolvGetElements
 
 class GetElements(object):
 
-    def __init__(self, logger, metadata):
-        self.logger = logger
+    def __init__(self, metadata, logger, config, args):
         self.metadata = metadata
+        self.logger = logger
+        self.config = config
+        self.args = args
         self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
         self.ignore_hosts = 'ignore_hosts' in metadata and metadata['ignore_hosts'] or []
         self.additional_hosts = 'additional_hosts' in metadata and metadata['additional_hosts'] or []
-        self.nameservers = ResolvGetElements(logger, metadata).get_unix_dns_ips()
+        self.nameservers = ResolvGetElements(self.metadata,self.logger, self.config, self.args).get_unix_dns_ips()
+        self.nameservers.extend('dns_nameservers' in config and config['dns_nameservers'] or [])
         self.resolver = Resolver(nameservers=self.nameservers)
 
     def get_elements(self):
@@ -26,12 +29,12 @@ class GetElements(object):
                 self.logger.debug("Looking up IP for hostname: %s" % hostname)
                 try:
                     ips = self.get_hostname_ips(hostname)
+                    elements.extend(ips)
                 except Exception as err:
                     if self.ignore_missing_hosts:
                         pass
                     else:
                         raise RuntimeError("Could not retrieve IPs for hostname %s: %s" % (hostname, err))
-                elements.extend(ips)
         return elements
 
     def get_unique_hosts_from_apt_list(self):

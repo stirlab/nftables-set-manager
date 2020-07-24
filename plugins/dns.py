@@ -3,11 +3,14 @@ from plugins.resolv import GetElements as ResolvGetElements
 
 class GetElements(object):
 
-    def __init__(self, logger, metadata):
-        self.logger = logger
+    def __init__(self, metadata, logger, config, args):
         self.metadata = metadata
+        self.logger = logger
+        self.config = config
+        self.args = args
         self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
-        self.nameservers = ResolvGetElements(logger, metadata).get_unix_dns_ips()
+        self.nameservers = ResolvGetElements(self.metadata,self.logger, self.config, self.args).get_unix_dns_ips()
+        self.nameservers.extend('dns_nameservers' in config and config['dns_nameservers'] or [])
         self.resolver = Resolver(nameservers=self.nameservers)
 
     def get_elements(self):
