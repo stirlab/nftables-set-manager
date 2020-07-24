@@ -11,12 +11,15 @@ class GetElements(object):
         self.metadata = metadata
         self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
         self.ignore_hosts = 'ignore_hosts' in metadata and metadata['ignore_hosts'] or []
+        self.additional_hosts = 'additional_hosts' in metadata and metadata['additional_hosts'] or []
         self.nameservers = ResolvGetElements(logger, metadata).get_unix_dns_ips()
         self.resolver = Resolver(nameservers=self.nameservers)
 
     def get_elements(self):
         elements = []
-        for hostname in self.get_unique_hosts_from_apt_list():
+        apt_hosts = self.get_unique_hosts_from_apt_list()
+        apt_hosts.extend(self.additional_hosts)
+        for hostname in set(apt_hosts):
             if hostname in self.ignore_hosts:
                 self.logger.debug("Ignoring hostname: %s" % hostname)
             else:
