@@ -1,3 +1,7 @@
+# Full path to the nft binary.
+# Optional. Default is /usr/sbin/nft
+nft_binary:
+  - /path/to/nft
 # List of additional nameservers that the resolver will use.
 # Optional, the resolver will always use the nameservers listed
 # in /etc/resolv.conf, and these addtional ones if provided.

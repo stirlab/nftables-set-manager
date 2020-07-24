@@ -4,11 +4,14 @@ import json
 
 logging.basicConfig(level=logging.INFO)
 
+DEFAULT_NFT_BINARY = '/usr/sbin/nft'
+
 class NftablesSet(object):
 
     def __init__(self, args, config):
         self.args = args
         self.config = config
+        self.nft_binary = 'nft_binary' in config and config['nft_binary'] or DEFAULT_NFT_BINARY
         self.logger = logging.getLogger(self.__class__.__name__)
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
@@ -51,7 +54,7 @@ class NftablesSet(object):
 
     def run(self, command_args, capture_output=True):
         command = [
-            'nft',
+            self.nft_binary,
             '-j',
         ]
         command.extend(command_args)
