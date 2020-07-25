@@ -38,6 +38,7 @@ class GetElements(object):
         return self.build_elements(data)
 
     def build_elements(self, data):
+        elements = []
         for ip_type in data:
             if ip_type in self.ip_types:
                 self.logger.debug("Adding elements for IP type: %s" % ip_type)
