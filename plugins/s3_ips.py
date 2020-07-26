@@ -2,7 +2,7 @@ import json
 import requests
 from requests.exceptions import HTTPError
 
-S3_IP_RANGES_JSON_URL = 'https://ip-ranges.amazonaws.com/ip-ranges.json'
+S3_IP_RANGES_DEFAULT_JSON_URL = 'https://ip-ranges.amazonaws.com/ip-ranges.json'
 REGIONS_DEFAULT = [
     'us-east-1',
 ]
@@ -14,6 +14,7 @@ class GetElements(object):
         self.logger = logger
         self.config = config
         self.args = args
+        self.json_url = 'json_url' in metadata and metadata['json_url'] or S3_IP_RANGES_DEFAULT_JSON_URL
         self.regions = 'regions' in metadata and metadata['regions'] or REGIONS_DEFAULT
 
     def get_elements(self):
@@ -21,9 +22,9 @@ class GetElements(object):
         return s3_ips
 
     def get_s3_ips_for_regions(self):
-        self.logger.debug("Retrieving data from : %s" % S3_IP_RANGES_JSON_URL)
+        self.logger.debug("Retrieving data from : %s" % self.json_url)
         try:
-            response = requests.get(S3_IP_RANGES_JSON_URL)
+            response = requests.get(self.json_url)
             response.raise_for_status()
             data = response.json()
         except HTTPError as http_err:
