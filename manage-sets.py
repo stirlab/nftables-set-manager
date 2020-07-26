@@ -5,7 +5,7 @@ import argparse
 import yaml
 from set_manager import SetManager
 
-DEFAULT_SCRIPT_DIR = os.path.dirname(__file__)
+DEFAULT_SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG_FILE = "%s/config.yaml" % DEFAULT_SCRIPT_DIR
 DEFAULT_PLUGIN_DIR = "%s/plugins" % DEFAULT_SCRIPT_DIR
 
