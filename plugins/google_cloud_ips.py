@@ -1,8 +1,8 @@
 import json
 import urllib.request
 
-GOOG_JSON_URL = "www.gstatic.com/ipranges/goog.json"
-CLOUD_JSON_URL = "www.gstatic.com/ipranges/cloud.json"
+GOOG_DEFAULT_JSON_URL = "www.gstatic.com/ipranges/goog.json"
+CLOUD_DEFAULT_JSON_URL = "www.gstatic.com/ipranges/cloud.json"
 
 class GetElements(object):
 
@@ -11,6 +11,8 @@ class GetElements(object):
         self.logger = logger
         self.config = config
         self.args = args
+        self.goog_json_url = 'goog_json_url' in metadata and metadata['goog_json_url'] or GOOG_DEFAULT_JSON_URL
+        self.cloud_json_url = 'cloud_json_url' in metadata and metadata['cloud_json_url'] or CLOUD_DEFAULT_JSON_URL
 
     def get_elements(self):
         google_ips = self.get_google_cloud_ips()
@@ -41,11 +43,11 @@ class GetElements(object):
                 return {}
 
     def get_google_cloud_ips(self):
-        goog_json = self.read_url(GOOG_JSON_URL)
-        cloud_json = self.read_url(CLOUD_JSON_URL)
+        goog_json = self.read_url(self.goog_json_url)
+        cloud_json = self.read_url(self.cloud_json_url)
         if goog_json and cloud_json:
-            self.logger.debug('%s published: %s' % (GOOG_JSON_URL, goog_json.get('creationTime')))
-            self.logger.debug('%s published: %s' % (CLOUD_JSON_URL, cloud_json.get('creationTime')))
+            self.logger.debug('%s published: %s' % (self.goog_json_url, goog_json.get('creationTime')))
+            self.logger.debug('%s published: %s' % (self.cloud_json_url, cloud_json.get('creationTime')))
             goog_cidrs = set()
             for e in goog_json['prefixes']:
                 cidr = e.get('ipv4Prefix')
