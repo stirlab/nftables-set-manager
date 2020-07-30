@@ -1,8 +1,8 @@
 import json
 import urllib.request
 
-GOOG_DEFAULT_JSON_URL = "www.gstatic.com/ipranges/goog.json"
-CLOUD_DEFAULT_JSON_URL = "www.gstatic.com/ipranges/cloud.json"
+GOOG_DEFAULT_JSON_URL = "https://www.gstatic.com/ipranges/goog.json"
+CLOUD_DEFAULT_JSON_URL = "https://www.gstatic.com/ipranges/cloud.json"
 
 class GetElements(object):
 
@@ -18,29 +18,20 @@ class GetElements(object):
         google_ips = self.get_google_cloud_ips()
         return google_ips
 
-    def read_url(self, url, fallback_to_http=False, attempts=2):
-        if fallback_to_http:
-            full_url = "http://" + url
-        else:
-            full_url = "https://" + url
+    def read_url(self, url):
         try:
-            self.logger.debug('Loading JSON from URL: %s' % full_url)
-            s = urllib.request.urlopen(full_url).read()
+            self.logger.debug('Loading JSON from URL: %s' % url)
+            s = urllib.request.urlopen(url).read()
             return json.loads(s)
         except urllib.error.HTTPError as http_err:
-            self.logger.warning("Invalid HTTP response from %s: %s" % (full_url, http_err))
+            self.logger.warning("Invalid HTTP response from %s: %s" % (url, http_err))
             return {}
         except json.decoder.JSONDecodeError as json_err:
-            self.logger.warning("Could not parse HTTP response from %s" % (full_url, json_err))
+            self.logger.warning("Could not parse HTTP response from %s" % (url, json_err))
             return {}
         except urllib.error.URLError as err:
-            if attempts > 1:
-                attempts -=1
-                self.logger.warning("Error opening URL; trying HTTP instead of HTTPS.")
-                return self.read_url(url, fallback_to_http=True, attempts=attempts)
-            else:
-                self.logger.error("Error opening URL %s: %s" % (full_url, err))
-                return {}
+            self.logger.error("Error opening URL %s: %s" % (url, err))
+            return {}
 
     def get_google_cloud_ips(self):
         goog_json = self.read_url(self.goog_json_url)
