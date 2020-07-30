@@ -35,7 +35,7 @@ class GetElements(object):
             if attempts > 1:
                 attempts -=1
                 self.logger.warning("Error opening URL; trying HTTP instead of HTTPS.")
-                return read_url(url, fallback_to_http=True, attempts=attempts)
+                return self.read_url(url, fallback_to_http=True, attempts=attempts)
             else:
                 self.logger.error("Error opening URL %s: %s" % (full_url, err))
                 return {}
