@@ -11,7 +11,7 @@ IP_TYPES_DEFAULT = [
 
 class GetElements(object):
 
-    def __init__(self, metadata, logger, config, args):
+    def __init__(self, metadata, resolver, logger, config, args):
         self.metadata = metadata
         self.logger = logger
         self.config = config

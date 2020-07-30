@@ -1,20 +1,15 @@
-from berserker_resolver import Resolver
-from plugins.resolv import GetElements as ResolvGetElements
-
 SAAS_HOSTNAMES = [
     "drbd.io",
 ]
 
 class GetElements(object):
 
-    def __init__(self, metadata, logger, config, args):
+    def __init__(self, metadata, resolver, logger, config, args):
         self.metadata = metadata
+        self.resolver = resolver
         self.logger = logger
         self.config = config
         self.args = args
-        self.nameservers = ResolvGetElements(self.metadata,self.logger, self.config, self.args).get_unix_dns_ips()
-        self.nameservers.extend('dns_nameservers' in config and config['dns_nameservers'] or [])
-        self.resolver = Resolver(nameservers=self.nameservers)
 
     def get_elements(self):
         elements = []

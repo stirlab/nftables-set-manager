@@ -5,7 +5,7 @@ CLOUDFLARE_IP_RANGES_DEFAULT_JSON_URL = 'https://www.cloudflare.com/ips-v4'
 
 class GetElements(object):
 
-    def __init__(self, metadata, logger, config, args):
+    def __init__(self, metadata, resolver, logger, config, args):
         self.metadata = metadata
         self.logger = logger
         self.config = config

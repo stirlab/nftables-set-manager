@@ -5,8 +5,22 @@ import logging
 import importlib.util
 import json
 from nftables_set import NftablesSet
+from berserker_resolver import Resolver
+from resolv import Resolv
 
 logging.basicConfig(level=logging.INFO)
+
+DEFAULT_DNS_IPS_SET_NAME = 'dns_ips'
+BERSERKER_IPS_DEFAULT = [
+    # Google.
+    '8.8.8.8',
+    '8.8.4.4',
+    # Cloudflare.
+    '1.1.1.1',
+    '1.0.0.1',
+    # Quad9.
+    '9.9.9.9',
+]
 
 class SetManager(object):
 
@@ -16,6 +30,9 @@ class SetManager(object):
         self.sets = self.args.sets
         self.plugin_dir = args.plugin_dir
         self.plugin_cache = {}
+        self.dns_ips_set_name = 'dns_ips_set_name' in config and config['dns_ips_set_name'] or DEFAULT_DNS_IPS_SET_NAME
+        if not 'berserker_ips' in self.config:
+            self.config['berserker_ips'] = BERSERKER_IPS_DEFAULT
         self.nftables_set = NftablesSet(self.args, self.config)
         self.logger = logging.getLogger(self.__class__.__name__)
         if self.args.quiet:
@@ -49,7 +66,7 @@ class SetManager(object):
         plugin = self.load_plugin(config['plugin'])
         metadata = 'metadata' in config and config['metadata'] or {}
         try:
-            instance = plugin['class'](metadata, plugin['logger'], self.config, self.args)
+            instance = plugin['class'](metadata, self.resolver, plugin['logger'], self.config, self.args)
             elements = instance.get_elements()
             self.logger.debug("Got elements for set '%s': %s" % (set_name, json.dumps(elements)))
             return elements
@@ -81,10 +98,24 @@ class SetManager(object):
     def get_set_config(self, set_name):
         return self.config['sets'][set_name]
 
+    def set_dns_resolver(self):
+        self.dns_ips = self.nameserver_ips.copy()
+        if self.args.berserk:
+            self.dns_ips.extend(config['berserker_ips'])
+        self.resolver = Resolver(nameservers=self.dns_ips)
+
+    def update_dns_ips(self):
+        resolv = Resolv(self.logger, self.config, self.args)
+        self.nameserver_ips = resolv.get_elements()
+        self.logger.debug("Got elements for resolver: %s" % json.dumps(self.nameserver_ips))
+        return self.nameserver_ips
+
     def get_all_sets(self):
         return self.config['sets'].keys()
 
     def update_sets(self):
+        self.update_set(self.dns_ips_set_name, self.update_dns_ips())
+        set_dns_resolver()
         if not self.sets:
             self.logger.info("No sets passed, updating all sets")
             self.sets = self.get_all_sets()

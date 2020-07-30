@@ -2,31 +2,40 @@
 # Optional. Default is /usr/sbin/nft
 nft_binary:
   - /path/to/nft
-# List of additional nameservers that the resolver will use.
+# Nameserver config file.
+# Optional. Default is /etc/resolv.conf
+resolv_file: /etc/resolv.conf
+# List of additional nameservers that the resolver will use when the --berserk
+# switch is passed.
 # Optional, the resolver will always use the nameservers listed
-# in /etc/resolv.conf, and these addtional ones if provided.
-dns_nameservers:
+# in the nameserver config file.
+berserker_ips:
   - 1.1.1.1
   - 8.8.8.8
   - 9.9.9.9
+# The name of the nftables set used to store the DNS IPs used by the resolver.
+# Optional. Default is 'dns_ips'
+dns_ips_set_name: some_set_name
+#Standard YAML anchor/alias config, keeps repetition down.
+defaults: &DEFAULTS
+  # The table family.
+  family: inet
+  # The table name.
+  table: filter
 sets:
   # The name of the set as it appears in nftables.
-  dns_ip:
-    # The table family.
-    family: inet
-    # The table name.
-    table: input
+  website_ips:
+    <<: *DEFAULTS
     # The plugin used to generate the updated list of elements for the set.
     # Must be the filename of the plugin in the plugin directory, without
     # the extension.
-    plugin: resolv
+    plugin: dns
     # The strategy for the update, one of:
-    #   add: Only add new elements
     #   update: Update the elements in place, first adding new elements,
     #           then removing existing elements that don't match the new
     #           set.
     #   replace: Replace the old elements with the new
-    strategy: replace
+    strategy: update
     # Metadata is data that gets passed directly to the instance of the plugin
     # that will generate the new elements.
     netadata:

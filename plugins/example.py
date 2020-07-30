@@ -1,9 +1,12 @@
 # Required, class name must be 'GetElements'.
 class GetElements(object):
 
-    def __init__(self, metadata, logger, config, args):
+    def __init__(self, metadata, resolver, logger, config, args):
         # Any metadata from the configuration for the set.
         self.metadata = metadata
+        # Configured instance of berserker_resolver. If args.berserk is set,
+        # then berserker_ips will be used as well to resolve hostnames.
+        self.resolver = resolver
         # The logger instantiated for this plugin.
         self.logger = logger
         # Loaded configuration file.
