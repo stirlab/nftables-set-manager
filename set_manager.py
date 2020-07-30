@@ -99,29 +99,40 @@ class SetManager(object):
         return self.config['sets'][set_name]
 
     def set_dns_resolver(self):
-        self.dns_ips = self.nameserver_ips.copy()
         if self.args.berserk:
-            self.dns_ips.extend(config['berserker_ips'])
-        self.resolver = Resolver(nameservers=self.dns_ips)
+            self.logger.info("Berserk mode enabled")
+            nameservers = self.add_berserker_ips_to_nameservers()
+        else:
+            nameservers = self.nameserver_ips
+        self.logger.debug("Resolver will use DNS IPs: %s" % json.dumps(nameservers))
+        self.resolver = Resolver(nameservers=nameservers)
+
+    def add_berserker_ips_to_nameservers(self):
+        nameservers = self.nameserver_ips.copy()
+        nameservers.extend(self.config['berserker_ips'])
+        return nameservers
 
     def update_dns_ips(self):
         resolv = Resolv(self.logger, self.config, self.args)
         self.nameserver_ips = resolv.get_elements()
         self.logger.debug("Got elements for resolver: %s" % json.dumps(self.nameserver_ips))
-        return self.nameserver_ips
+        return self.add_berserker_ips_to_nameservers()
 
     def get_all_sets(self):
         return self.config['sets'].keys()
 
     def update_sets(self):
         self.update_set(self.dns_ips_set_name, self.update_dns_ips())
-        set_dns_resolver()
+        self.set_dns_resolver()
         if not self.sets:
             self.logger.info("No sets passed, updating all sets")
             self.sets = self.get_all_sets()
         for set_name in self.sets:
-            if set_name in self.config['sets']:
-                elements = self.fetch_set_elements(set_name)
-                self.update_set(set_name, elements)
-            else:
-                raise KeyError("Invalid set: %s" % set_name)
+            # The DNS IPs set must be skipped -- it is required in config, but
+            # is handled by a special case first.
+            if set_name != self.dns_ips_set_name:
+                if set_name in self.config['sets']:
+                    elements = self.fetch_set_elements(set_name)
+                    self.update_set(set_name, elements)
+                else:
+                    raise KeyError("Invalid set: %s" % set_name)

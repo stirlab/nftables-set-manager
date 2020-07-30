@@ -1,6 +1,6 @@
 import socket
 
-RESOLV_DEFAULT = "'/etc/resolv.conf'"
+RESOLV_DEFAULT = "/etc/resolv.conf"
 
 class Resolv(object):
 
@@ -8,14 +8,14 @@ class Resolv(object):
         self.logger = logger
         self.config = config
         self.args = args
-        self.resolv_file = 'resolv_file' in config and config['resolv_file'] or RESOLV_DEFAULT
+        self.resolv_file = 'resolv_file' in self.config and self.config['resolv_file'] or RESOLV_DEFAULT
 
     def get_elements(self):
         return self.get_unix_dns_ips()
 
     def get_unix_dns_ips(self):
         self.logger.debug('Parsing %s for nameservers' % self.resolv_file)
-        dns_ips = config['berserker_ips']
+        dns_ips = []
         with open(self.resolv_file) as fp:
             for cnt, line in enumerate(fp):
                 columns = line.split()

@@ -15,7 +15,7 @@ berserker_ips:
   - 9.9.9.9
 # The name of the nftables set used to store the DNS IPs used by the resolver.
 # Optional. Default is 'dns_ips'
-dns_ips_set_name: some_set_name
+dns_ips_set_name: dns_ips
 #Standard YAML anchor/alias config, keeps repetition down.
 defaults: &DEFAULTS
   # The table family.
@@ -40,3 +40,9 @@ sets:
     # that will generate the new elements.
     netadata:
       foo: bar
+  # This is the one required set, the set name must match the value of
+  # 'dns_ips_set_name'.
+  dns_ips:
+    <<: *DEFAULTS
+    plugin: resolv
+    strategy: update
