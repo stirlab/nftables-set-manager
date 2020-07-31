@@ -52,9 +52,9 @@ class GetElements(object):
             self.write_cache_file(response.text)
         except Exception as err:
             self.logger.error('Other error occurred: %s' % err)
-            data = self.try_cache_file()
-            if not data:
-                return False
+            content = self.try_cache_file()
+            if content:
+                data = json.loads(content)
             return False
         return self.build_elements(data)
 
