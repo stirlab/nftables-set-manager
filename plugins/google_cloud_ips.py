@@ -48,7 +48,7 @@ class GetElements(object):
             response = requests.get(url)
             response.raise_for_status()
             data = response.json()
-            self.write_cache_file(cache_file, data)
+            self.write_cache_file(cache_file, response.text)
         except Exception as err:
             self.logger.error('Other error occurred: %s' % err)
             content = self.try_cache_file(cache_file)
