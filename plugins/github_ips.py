@@ -57,7 +57,8 @@ class GetElements(object):
             content = self.try_cache_file()
             if content:
                 data = json.loads(content)
-            return False
+            else:
+                return False
         return self.build_elements(data)
 
     def build_elements(self, data):
