@@ -1,8 +1,18 @@
+import sys
 import json
-import urllib.request
+import requests
+from file_util import cache_file_get, cache_file_write
+
+sys.path.append('..')
+
+# NOTE: Google has some ridiculous DNS variation going on, so this plugin
+# implements an optional fallback to cache file for the times the IP of
+# www.gstatic.com falls out from underneath us.
 
 GOOG_DEFAULT_JSON_URL = "https://www.gstatic.com/ipranges/goog.json"
 CLOUD_DEFAULT_JSON_URL = "https://www.gstatic.com/ipranges/cloud.json"
+DEFAULT_CACHE_GOOG_FILE = '/tmp/google_goog_ip_ranges.json'
+DEFAULT_CACHE_CLOUD_FILE = '/tmp/google_cloud_ip_ranges.json'
 
 class GetElements(object):
 
@@ -13,29 +23,43 @@ class GetElements(object):
         self.args = args
         self.goog_json_url = 'goog_json_url' in metadata and metadata['goog_json_url'] or GOOG_DEFAULT_JSON_URL
         self.cloud_json_url = 'cloud_json_url' in metadata and metadata['cloud_json_url'] or CLOUD_DEFAULT_JSON_URL
+        self.cache_json = 'cache_json' in metadata and metadata['cache_json'] or False
+        self.cache_json_goog_file = 'cache_json_goog_file' in metadata and metadata['cache_json_goog_file'] or DEFAULT_CACHE_GOOG_FILE
+        self.cache_json_cloud_file = 'cache_json_cloud_file' in metadata and metadata['cache_json_cloud_file'] or DEFAULT_CACHE_CLOUD_FILE
 
     def get_elements(self):
         google_ips = self.get_google_cloud_ips()
         return google_ips
 
-    def read_url(self, url):
+    def write_cache_file(self, cache_file, data):
+        if self.cache_json:
+            self.logger.info('Caching data to file: %s' % cache_file)
+            cache_file_write(cache_file, data)
+
+    def try_cache_file(self, cache_file):
+        if self.cache_json:
+            self.logger.info('Trying cache file: %s' % cache_file)
+            return cache_file_get(cache_file)
+        return False
+
+    def get_file_data(self, url, cache_file):
+        self.logger.debug("Retrieving JSON data from : %s" % url)
         try:
-            self.logger.debug('Loading JSON from URL: %s' % url)
-            s = urllib.request.urlopen(url).read()
-            return json.loads(s)
-        except urllib.error.HTTPError as http_err:
-            self.logger.warning("Invalid HTTP response from %s: %s" % (url, http_err))
-            return {}
-        except json.decoder.JSONDecodeError as json_err:
-            self.logger.warning("Could not parse HTTP response from %s" % (url, json_err))
-            return {}
-        except urllib.error.URLError as err:
-            self.logger.error("Error opening URL %s: %s" % (url, err))
-            return {}
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            self.write_cache_file(cache_file, data)
+        except Exception as err:
+            self.logger.error('Other error occurred: %s' % err)
+            content = self.try_cache_file(cache_file)
+            if content:
+                data = json.loads(content)
+            else:
+                return False
 
     def get_google_cloud_ips(self):
-        goog_json = self.read_url(self.goog_json_url)
-        cloud_json = self.read_url(self.cloud_json_url)
+        goog_json = self.get_file_data(self.goog_json_url, self.cache_json_goog_file)
+        cloud_json = self.get_file_data(self.cloud_json_url, self.cache_json_cloud_file)
         if goog_json and cloud_json:
             self.logger.debug('%s published: %s' % (self.goog_json_url, goog_json.get('creationTime')))
             self.logger.debug('%s published: %s' % (self.cloud_json_url, cloud_json.get('creationTime')))

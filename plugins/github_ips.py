@@ -1,7 +1,6 @@
 import sys
 import json
 import requests
-from requests.exceptions import HTTPError
 from file_util import cache_file_get, cache_file_write
 
 sys.path.append('..')
