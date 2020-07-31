@@ -56,6 +56,7 @@ class GetElements(object):
                 data = json.loads(content)
             else:
                 return False
+        return data
 
     def get_google_cloud_ips(self):
         goog_json = self.get_file_data(self.goog_json_url, self.cache_json_goog_file)
