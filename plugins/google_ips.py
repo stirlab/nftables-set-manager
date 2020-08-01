@@ -78,7 +78,7 @@ class GetElements(object):
             if self.cloud_default_domains_only:
                 ip_ranges = list(goog_cidrs.difference(cloud_cidrs))
             else:
-                ip_ranges = goog_cidrs
+                ip_ranges = list(goog_cidrs)
             self.logger.debug("IP ranges for Google APIs and services default domains: %s" % json.dumps(ip_ranges))
             return ip_ranges
         else:
