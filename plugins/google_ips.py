@@ -21,6 +21,7 @@ class GetElements(object):
         self.logger = logger
         self.config = config
         self.args = args
+        self.cloud_default_domains_only = 'cloud_default_domains_only' in metadata and metadata['cloud_default_domains_only'] or False
         self.goog_json_url = 'goog_json_url' in metadata and metadata['goog_json_url'] or GOOG_DEFAULT_JSON_URL
         self.cloud_json_url = 'cloud_json_url' in metadata and metadata['cloud_json_url'] or CLOUD_DEFAULT_JSON_URL
         self.cache_json = 'cache_json' in metadata and metadata['cache_json'] or False
@@ -28,7 +29,7 @@ class GetElements(object):
         self.cache_json_cloud_file = 'cache_json_cloud_file' in metadata and metadata['cache_json_cloud_file'] or DEFAULT_CACHE_CLOUD_FILE
 
     def get_elements(self):
-        google_ips = self.get_google_cloud_ips()
+        google_ips = self.get_google_ips()
         return google_ips
 
     def write_cache_file(self, cache_file, data):
@@ -58,7 +59,7 @@ class GetElements(object):
                 return False
         return data
 
-    def get_google_cloud_ips(self):
+    def get_google_ips(self):
         goog_json = self.get_file_data(self.goog_json_url, self.cache_json_goog_file)
         cloud_json = self.get_file_data(self.cloud_json_url, self.cache_json_cloud_file)
         if goog_json and cloud_json:
@@ -74,7 +75,10 @@ class GetElements(object):
                 cidr = e.get('ipv4Prefix')
                 if cidr:
                     cloud_cidrs.add(cidr)
-            ip_ranges = list(goog_cidrs.difference(cloud_cidrs))
+            if self.cloud_default_domains_only:
+                ip_ranges = list(goog_cidrs.difference(cloud_cidrs))
+            else:
+                ip_ranges = goog_cidrs
             self.logger.debug("IP ranges for Google APIs and services default domains: %s" % json.dumps(ip_ranges))
             return ip_ranges
         else:

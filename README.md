@@ -20,7 +20,7 @@ Several plugins come with the pagkage:
  * apt_list: Gets IP addresses for all Apt sources files (requires berserker_resolver package)
  * s3_ips: Gets IP addresses for AWS S3 regions
  * github_ips: Gets IP addresses for Github IP types
- * google_cloud_ips: Gets IP addresses for Google Cloud services
+ * google_ips: Gets IP addresses for all of Google, or just Google Cloud services
  * cloudflare_ips: Gets IP addresses for Google Cloud services
  * saas_ips: Gets IP addresses DRBD's spatch as a service
 
