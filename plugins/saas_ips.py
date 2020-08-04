@@ -1,15 +1,12 @@
+import sys
+sys.path.append('..')
+from plugins import Plugin
+
 SAAS_HOSTNAMES = [
     "drbd.io",
 ]
 
-class GetElements(object):
-
-    def __init__(self, metadata, resolver, logger, config, args):
-        self.metadata = metadata
-        self.resolver = resolver
-        self.logger = logger
-        self.config = config
-        self.args = args
+class GetElements(Plugin):
 
     def get_elements(self):
         elements = []

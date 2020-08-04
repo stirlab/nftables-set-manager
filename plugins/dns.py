@@ -1,11 +1,11 @@
-class GetElements(object):
+import sys
+sys.path.append('..')
+from plugins import Plugin
+
+class GetElements(Plugin):
 
     def __init__(self, metadata, resolver, logger, config, args):
-        self.metadata = metadata
-        self.resolver = resolver
-        self.logger = logger
-        self.config = config
-        self.args = args
+        super().__init__(metadata, resolver, logger, config, args)
         self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
 
     def get_elements(self):

@@ -1,15 +1,15 @@
+import sys
+sys.path.append('..')
+from plugins import Plugin
 import json
+
 from aptsources.sourceslist import SourcesList
 from urllib.parse import urlparse
 
-class GetElements(object):
+class GetElements(Plugin):
 
     def __init__(self, metadata, resolver, logger, config, args):
-        self.metadata = metadata
-        self.resolver = resolver
-        self.logger = logger
-        self.config = config
-        self.args = args
+        super().__init__(metadata, resolver, logger, config, args)
         self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
         self.ignore_hosts = 'ignore_hosts' in metadata and metadata['ignore_hosts'] or []
         self.additional_hosts = 'additional_hosts' in metadata and metadata['additional_hosts'] or []
