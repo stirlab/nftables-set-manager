@@ -21,6 +21,7 @@ Several plugins come with the pagkage:
  * s3_ips: Gets IP addresses for AWS S3 regions
  * github_ips: Gets IP addresses for Github IP types
  * google_ips: Gets IP addresses for all of Google, or just Google Cloud services
+ * microsoft_office_ips: Gets IP addresses for all of Microsoft Office 365 services
  * cloudflare_ips: Gets IP addresses for Google Cloud services
  * saas_ips: Gets IP addresses DRBD's spatch as a service
 
