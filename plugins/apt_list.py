@@ -22,9 +22,10 @@ class GetElements(Plugin):
             if hostname in self.ignore_hosts:
                 self.logger.debug("Ignoring hostname: %s" % hostname)
             else:
-                self.logger.debug("Looking up IP for hostname: %s" % hostname)
+                self.logger.debug("Looking up IPs for hostname: %s" % hostname)
                 try:
                     ips = self.get_hostname_ips(hostname)
+                    self.logger.debug("Retrieved IPs for hostname: %s: %s" % (hostname, ips))
                     elements.extend(ips)
                 except Exception as err:
                     if self.ignore_missing_hosts:
