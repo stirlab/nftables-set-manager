@@ -4,10 +4,11 @@ from requests.exceptions import HTTPError
 
 class FileRetriever(object):
 
-    def __init__(self, logger, url, cache_file=None):
+    def __init__(self, logger, url, cache_file=None, timeout=2.0):
         self.logger = logger
         self.url = url
         self.cache_file = cache_file
+        self.timeout = timeout
 
     def get_json(self):
         data = self.get()
@@ -19,12 +20,12 @@ class FileRetriever(object):
     def get(self):
         self.logger.debug("Retrieving file from : %s" % self.url)
         try:
-            response = requests.get(self.url)
+            response = requests.get(self.url, timeout=self.timeout)
             response.raise_for_status()
             self.write_cache_file(response.text)
             return response.text
         except Exception as err:
-            self.logger.error('error occurred: %s' % err)
+            self.logger.error('Error occurred: %s' % err)
             return self.try_cache_file()
 
     def write_cache_file(self, data):
