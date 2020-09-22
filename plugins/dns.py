@@ -11,6 +11,7 @@ class GetElements(Plugin):
     def get_elements(self):
         elements = []
         for hostname in self.metadata['hostnames']:
+            ips = []
             self.logger.debug("Looking up IPs for hostname: %s" % hostname)
             try:
                 ips = self.get_hostname_ips(hostname)
