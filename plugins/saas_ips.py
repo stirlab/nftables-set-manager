@@ -14,9 +14,9 @@ class GetElements(Plugin):
             self.logger.debug("Looking up IPs for hostname: %s" % hostname)
             try:
                 ips = self.get_hostname_ips(hostname)
+                elements.extend(ips)
             except Exception as err:
-                raise RuntimeError("Could not retrieve IPs for hostname %s: %s" % (hostname, err))
-            elements.extend(ips)
+                self.logger.error("Could not retrieve IPs for hostname %s: %s" % (hostname, err))
         return elements
 
     def get_hostname_ips(self, hostname):
