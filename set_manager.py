@@ -76,7 +76,8 @@ class SetManager(object):
     def update_set(self, set_name, elements):
         config = self.get_set_config(set_name)
         if elements is False:
-            self.logger.warning('Plugin %s returned without updating elements, skiping update' % config['plugin'])
+            self.logger.warning('Plugin %s returned without updating elements, skipping update' % config['plugin'])
+            return
         if config['strategy'] == 'replace':
             self.nftables_set.set_operation('flush', config['family'], config['table'], set_name)
         if len(elements) > 0:
