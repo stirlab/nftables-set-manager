@@ -37,7 +37,7 @@ class GetElements(Plugin):
                 for element in data[ip_type]:
                     if self.is_ipv4_address(element):
                         elements.append(element)
-                    else
+                    else:
                         self.logger.debug("Skipping non-IPv4 address: %s" % element)
             else:
                 self.logger.debug("Skipping IP type: %s" % ip_type)
