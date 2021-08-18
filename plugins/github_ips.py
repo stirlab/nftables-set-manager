@@ -35,7 +35,7 @@ class GetElements(Plugin):
             if ip_type in self.ip_types:
                 self.logger.debug("Adding elements for IP type: %s" % ip_type)
                 for element in data[ip_type]:
-                    if self.is_ipv4_address(element):
+                    if self.is_ipv4_address(element.split("/")[0]):
                         elements.append(element)
                     else:
                         self.logger.debug("Skipping non-IPv4 address: %s" % element)
