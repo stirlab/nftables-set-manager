@@ -8,6 +8,7 @@ class FileRetriever(object):
         self.logger = logger
         self.url = url
         self.cache_file = cache_file
+        self.cache_only = self.url == self.cache_file
         self.timeout = timeout
 
     def get_json(self):
@@ -18,6 +19,8 @@ class FileRetriever(object):
         return False
 
     def get(self):
+        if self.cache_only:
+            return self.try_cache_file()
         self.logger.debug("Retrieving file from : %s" % self.url)
         try:
             response = requests.get(self.url, timeout=self.timeout)

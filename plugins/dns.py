@@ -27,4 +27,7 @@ class GetElements(Plugin):
         if self.is_ipv4_address(hostname):
             return [hostname]
         result = self.resolver.query(hostname)
-        return [elem.to_text() for elem in result]
+        ips = [elem.to_text() for elem in result]
+        if self.cache_ips():
+            ips = self.rebuild_cached_ips(hostname, ips)
+        return ips
