@@ -47,7 +47,7 @@ class NftablesSet(object):
             set_table,
             set_name,
         ])
-        set_data = data[0]['set']
+        set_data = data[1]['set']
         elements = 'elem' in set_data and set_data['elem'] or []
         self.logger.debug("Elements for set '%s %s %s': %s" % (set_family, set_table, set_name, json.dumps(elements)))
         return elements
