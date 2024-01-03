@@ -1,10 +1,11 @@
 import sys
 sys.path.append('..')
-from plugins import Plugin
+from plugins import Plugin  # noqa: E402
 
 SAAS_HOSTNAMES = [
-    "drbd.io",
+    "spaas.drbd.io",
 ]
+
 
 class GetElements(Plugin):
 
