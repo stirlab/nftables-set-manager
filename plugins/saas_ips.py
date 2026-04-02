@@ -1,6 +1,14 @@
-import sys
-sys.path.append('..')
-from plugins import Plugin  # noqa: E402
+from __future__ import annotations
+
+"""Plugin for resolving fixed SaaS hostnames to IPv4 addresses."""
+
+from argparse import Namespace
+from logging import Logger
+from typing import Any
+
+from dns_resolver import DnsResolver
+from plugins import Plugin
+
 
 SAAS_HOSTNAMES = [
     "spaas.drbd.io",
@@ -8,18 +16,57 @@ SAAS_HOSTNAMES = [
 
 
 class GetElements(Plugin):
+    """Resolve fixed SaaS hostnames into nftables set elements."""
 
-    def get_elements(self):
-        elements = []
+    def __init__(
+        self,
+        metadata: dict[str, Any],
+        resolver: DnsResolver | None,
+        logger: Logger,
+        config: dict[str, Any],
+        args: Namespace,
+    ) -> None:
+        """Initialize the plugin.
+
+        :param metadata: Per-set metadata.
+        :type metadata: dict[str, Any]
+        :param resolver: Shared DNS resolver.
+        :type resolver: DnsResolver | None
+        :param logger: Plugin logger.
+        :type logger: logging.Logger
+        :param config: Full application config.
+        :type config: dict[str, Any]
+        :param args: Parsed command line args.
+        :type args: argparse.Namespace
+        """
+
+        super().__init__(metadata, resolver, logger, config, args)
+
+    def collect_hostnames(self) -> set[str]:
+        """Return fixed SaaS hostnames for manager prefetch.
+
+        :return: Hostnames needing DNS resolution.
+        :rtype: set[str]
+        """
+
+        return set(SAAS_HOSTNAMES)
+
+    def get_elements(self) -> list[str]:
+        """Resolve fixed SaaS hostnames.
+
+        :return: IPv4 set elements.
+        :rtype: list[str]
+        """
+
+        elements: list[str] = []
         for hostname in SAAS_HOSTNAMES:
-            self.logger.debug("Looking up IPs for hostname: %s" % hostname)
+            self.logger.debug("Looking up IPs for hostname: %s", hostname)
             try:
-                ips = self.get_hostname_ips(hostname)
-                elements.extend(ips)
-            except Exception as err:
-                self.logger.error("Could not retrieve IPs for hostname %s: %s" % (hostname, err))
-        return elements
-
-    def get_hostname_ips(self, hostname):
-        result = self.resolver.query(hostname)
-        return [elem.to_text() for elem in result]
+                elements.extend(self.resolve_hostname_ips(hostname))
+            except Exception as error:
+                self.logger.error(
+                    "Could not retrieve IPs for hostname %s: %s",
+                    hostname,
+                    error,
+                )
+        return sorted(dict.fromkeys(elements))

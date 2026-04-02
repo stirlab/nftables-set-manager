@@ -1,139 +1,392 @@
-#!/usr/bin/env python3
+from __future__ import annotations
 
-import os
-import logging
+"""Set manager for nftables sets backed by plugin-generated elements."""
+
+from argparse import Namespace
 import importlib.util
 import json
+import logging
+from pathlib import Path
+from types import ModuleType
+from typing import Any
+
+from dns_resolver import (
+    DEFAULT_FALLBACK_NAMESERVERS,
+    DnsResolver,
+    ResolverConfig,
+)
 from nftables_set import NftablesSet
-from berserker_resolver import Resolver
 from resolv import Resolv
 
-logging.basicConfig(level=logging.INFO)
 
-DEFAULT_DNS_IPS_SET_NAME = 'dns_ips'
-BERSERKER_IPS_DEFAULT = [
-    # Google.
-    '8.8.8.8',
-    '8.8.4.4',
-    # Cloudflare.
-    '1.1.1.1',
-    '1.0.0.1',
-    # Quad9.
-    '9.9.9.9',
-]
+DEFAULT_DNS_IPS_SET_NAME = "dns_ips"
+DEFAULT_RESOLVER_CONFIG = {
+    "include_fallback_nameservers": False,
+    "max_workers": 128,
+    "nameservers_from_resolv": True,
+    "record_type": "A",
+    "timeout_seconds": 3.0,
+    "tries_per_nameserver": 48,
+    "verbose": False,
+    "www": False,
+    "www_combine": False,
+}
 
-class SetManager(object):
 
-    def __init__(self, args, config):
+class SetManager:
+    """Manage configured nftables sets and their backing plugins."""
+
+    def __init__(self, args: Namespace, config: dict[str, Any]) -> None:
+        """Initialize the manager.
+
+        :param args: Parsed command line arguments.
+        :type args: argparse.Namespace
+        :param config: Loaded configuration.
+        :type config: dict[str, Any]
+        """
+
         self.args = args
         self.config = config
-        self.sets = self.args.sets
-        self.plugin_dir = args.plugin_dir
-        self.plugin_cache = {}
-        self.dns_ips_set_name = 'dns_ips_set_name' in config and config['dns_ips_set_name'] or DEFAULT_DNS_IPS_SET_NAME
-        if not 'berserker_ips' in self.config:
-            self.config['berserker_ips'] = BERSERKER_IPS_DEFAULT
+        self.config.setdefault("berserker_ips", list(DEFAULT_FALLBACK_NAMESERVERS))
+        self.sets = list(args.sets or [])
+        self.plugin_dir = Path(args.plugin_dir)
+        self.plugin_cache: dict[str, dict[str, Any]] = {}
+        self.dns_ips_set_name = str(
+            config.get("dns_ips_set_name", DEFAULT_DNS_IPS_SET_NAME),
+        )
         self.nftables_set = NftablesSet(self.args, self.config)
         self.logger = logging.getLogger(self.__class__.__name__)
         if self.args.quiet:
             self.logger.setLevel(logging.ERROR)
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
+        self.nameserver_ips: list[str] = []
+        self.resolver: DnsResolver | None = None
 
-    def load_plugin(self, plugin):
-        if plugin not in self.plugin_cache:
-            filepath = '%s/%s.py' % (self.plugin_dir, plugin)
-            try:
-                spec = importlib.util.spec_from_file_location(plugin, filepath)
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-            except SyntaxError as e:
-                raise SyntaxError("Plugin: %s (%s) -- %s" % (plugin, filepath, e))
-            except:
-                raise RuntimeError("Plugin: %s (%s) -- %s" % (plugin, filepath, e))
-            plugin_logger = logging.getLogger('plugin:%s' % plugin)
+    def load_plugin(self, plugin_name: str) -> dict[str, Any]:
+        """Load and cache a plugin module.
+
+        :param plugin_name: Plugin module name without suffix.
+        :type plugin_name: str
+        :return: Cached plugin metadata.
+        :rtype: dict[str, Any]
+        :raises RuntimeError: If the plugin cannot be loaded.
+        """
+
+        if plugin_name not in self.plugin_cache:
+            module_path = self.plugin_dir / f"{plugin_name}.py"
+            plugin_module = self._load_plugin_module(plugin_name, module_path)
+            plugin_logger = logging.getLogger(f"plugin:{plugin_name}")
             plugin_logger.setLevel(self.logger.level)
-            self.logger.debug("Caching plugin: %s" % plugin)
-            self.plugin_cache[plugin] = {
-                'class': getattr(mod, 'GetElements'),
-                'logger': plugin_logger,
+            self.logger.debug("Caching plugin: %s", plugin_name)
+            self.plugin_cache[plugin_name] = {
+                "class": getattr(plugin_module, "GetElements"),
+                "logger": plugin_logger,
             }
-        return self.plugin_cache[plugin]
+        return self.plugin_cache[plugin_name]
 
-    def fetch_set_elements(self, set_name):
-        config = self.get_set_config(set_name)
-        self.logger.info("Updating set '%s' with config: %s" % (set_name, json.dumps(config)))
-        plugin = self.load_plugin(config['plugin'])
-        metadata = 'metadata' in config and config['metadata'] or {}
+    def fetch_set_elements(self, set_name: str) -> list[str] | bool | None:
+        """Build elements for one configured set.
+
+        :param set_name: Set name to update.
+        :type set_name: str
+        :return: Elements from the plugin, ``False`` to skip, or ``None`` on error.
+        :rtype: list[str] | bool | None
+        """
+
+        set_config = self.get_set_config(set_name)
+        self.logger.info(
+            "Updating set '%s' with config: %s",
+            set_name,
+            json.dumps(set_config),
+        )
+        plugin = self.load_plugin(str(set_config["plugin"]))
+        metadata = dict(set_config.get("metadata", {}))
         try:
-            instance = plugin['class'](metadata, self.resolver, plugin['logger'], self.config, self.args)
+            instance = plugin["class"](
+                metadata,
+                self.resolver,
+                plugin["logger"],
+                self.config,
+                self.args,
+            )
             elements = instance.get_elements()
-            self.logger.debug("Got elements for set '%s': %s" % (set_name, json.dumps(elements)))
+            self.logger.debug(
+                "Got elements for set '%s': %s",
+                set_name,
+                json.dumps(elements),
+            )
             return elements
-        except Exception as e: # work on python 3.x
-            self.logger.error('Failed to get elements for set %s: %s' % (set_name, str(e)))
+        except Exception as error:
+            self.logger.error(
+                "Failed to get elements for set %s: %s",
+                set_name,
+                error,
+            )
+            return None
 
-    def update_set(self, set_name, elements):
-        config = self.get_set_config(set_name)
+    def update_set(self, set_name: str, elements: list[str] | bool | None) -> None:
+        """Apply updated elements to one nftables set.
+
+        :param set_name: Set name to update.
+        :type set_name: str
+        :param elements: Elements generated by the plugin.
+        :type elements: list[str] | bool | None
+        """
+
+        set_config = self.get_set_config(set_name)
         if elements is False:
-            self.logger.warning('Plugin %s returned without updating elements, skipping update' % config['plugin'])
+            self.logger.warning(
+                "Plugin %s returned without updating elements, skipping update",
+                set_config["plugin"],
+            )
             return
-        if config['strategy'] == 'replace':
-            self.nftables_set.set_operation('flush', config['family'], config['table'], set_name)
-        if len(elements) > 0:
-            self.nftables_set.set_operation('add', config['family'], config['table'], set_name, elements)
-        if config['strategy'] == 'update':
+        if elements is None:
+            self.logger.error(
+                "Plugin %s failed to produce elements, skipping update",
+                set_config["plugin"],
+            )
+            return
+        if str(set_config["strategy"]) == "replace":
+            self.nftables_set.set_operation(
+                "flush",
+                str(set_config["family"]),
+                str(set_config["table"]),
+                set_name,
+            )
+        if elements:
+            self.nftables_set.set_operation(
+                "add",
+                str(set_config["family"]),
+                str(set_config["table"]),
+                set_name,
+                elements,
+            )
+        if str(set_config["strategy"]) == "update":
             self.remove_expired_elements(set_name, elements)
-        final_set = self.nftables_set.get_set_elements(config['family'], config['table'], set_name)
-        self.logger.info("Final values for set %s: %s" % (set_name, json.dumps(final_set)))
+        final_set = self.nftables_set.get_set_elements(
+            str(set_config["family"]),
+            str(set_config["table"]),
+            set_name,
+        )
+        self.logger.info("Final values for set %s: %s", set_name, json.dumps(final_set))
 
-    def remove_expired_elements(self, set_name, elements):
-        config = self.get_set_config(set_name)
-        self.logger.debug("Replace strategy for set %s, removing old elements" % set_name)
-        current_set = set(self.nftables_set.get_set_elements(config['family'], config['table'], set_name))
+    def remove_expired_elements(self, set_name: str, elements: list[str]) -> None:
+        """Remove expired elements for an update-strategy set.
+
+        :param set_name: Set name being updated.
+        :type set_name: str
+        :param elements: Fresh elements from the plugin.
+        :type elements: list[str]
+        """
+
+        set_config = self.get_set_config(set_name)
+        self.logger.debug("Update strategy for set %s, removing old elements", set_name)
+        current_set = set(
+            self.nftables_set.get_set_elements(
+                str(set_config["family"]),
+                str(set_config["table"]),
+                set_name,
+            ),
+        )
         new_set = set(elements)
-        to_remove = list(current_set.difference(new_set))
-        if len(to_remove) > 0:
-            self.nftables_set.set_operation('delete', config['family'], config['table'], set_name, to_remove)
+        to_remove = sorted(current_set.difference(new_set))
+        if to_remove:
+            self.nftables_set.set_operation(
+                "delete",
+                str(set_config["family"]),
+                str(set_config["table"]),
+                set_name,
+                to_remove,
+            )
 
-    def get_set_config(self, set_name):
-        return self.config['sets'][set_name]
+    def get_set_config(self, set_name: str) -> dict[str, Any]:
+        """Return config for one set.
 
-    def set_dns_resolver(self):
+        :param set_name: Set name.
+        :type set_name: str
+        :return: Set configuration.
+        :rtype: dict[str, Any]
+        """
+
+        return dict(self.config["sets"][set_name])
+
+    def set_dns_resolver(self) -> None:
+        """Create the internal DNS resolver from merged configuration."""
+
+        resolver_config = self.build_resolver_config()
+        self.logger.debug(
+            "Resolver will use DNS IPs: %s",
+            json.dumps(resolver_config.nameservers),
+        )
+        self.resolver = DnsResolver(config=resolver_config, logger=self.logger)
+
+    def build_resolver_config(self) -> ResolverConfig:
+        """Build the effective resolver configuration.
+
+        :return: Effective resolver configuration.
+        :rtype: ResolverConfig
+        """
+
+        raw_config = dict(DEFAULT_RESOLVER_CONFIG)
+        raw_config.update(dict(self.config.get("resolver", {})))
+        fallback_nameservers = list(self.config["berserker_ips"])
+        if "fallback_nameservers" in raw_config:
+            fallback_nameservers = list(raw_config["fallback_nameservers"])
+        nameservers = self._build_nameserver_list(raw_config, fallback_nameservers)
+        return ResolverConfig(
+            nameservers=nameservers,
+            fallback_nameservers=fallback_nameservers,
+            tries_per_nameserver=int(raw_config["tries_per_nameserver"]),
+            timeout_seconds=float(raw_config["timeout_seconds"]),
+            max_workers=int(raw_config["max_workers"]),
+            record_type=str(raw_config["record_type"]),
+            verbose=bool(raw_config["verbose"]),
+            www=bool(raw_config["www"]),
+            www_combine=bool(raw_config["www_combine"]),
+        )
+
+    def _build_nameserver_list(
+        self,
+        resolver_config: dict[str, Any],
+        fallback_nameservers: list[str],
+    ) -> list[str]:
+        """Build the active nameserver list.
+
+        :param resolver_config: Raw resolver configuration.
+        :type resolver_config: dict[str, Any]
+        :param fallback_nameservers: Fallback nameservers.
+        :type fallback_nameservers: list[str]
+        :return: Ordered deduplicated nameservers.
+        :rtype: list[str]
+        """
+
+        nameservers: list[str] = []
+        if bool(resolver_config.get("nameservers_from_resolv", True)):
+            nameservers.extend(self.nameserver_ips)
+        explicit_nameservers = list(resolver_config.get("nameservers", []))
+        nameservers.extend(explicit_nameservers)
+        include_fallback = bool(resolver_config.get("include_fallback_nameservers", False))
         if self.args.berserk:
             self.logger.info("Berserk mode enabled")
-            nameservers = self.add_berserker_ips_to_nameservers()
-        else:
-            nameservers = self.nameserver_ips
-        self.logger.debug("Resolver will use DNS IPs: %s" % json.dumps(nameservers))
-        self.resolver = Resolver(nameservers=nameservers)
+            include_fallback = True
+        if include_fallback or not nameservers:
+            nameservers.extend(fallback_nameservers)
+        return list(dict.fromkeys(nameservers))
 
-    def add_berserker_ips_to_nameservers(self):
-        nameservers = self.nameserver_ips.copy()
-        nameservers.extend(self.config['berserker_ips'])
-        return nameservers
+    def update_dns_ips(self) -> list[str]:
+        """Refresh the nameserver set from the system resolver config.
 
-    def update_dns_ips(self):
+        :return: Effective nameserver list including fallback compatibility.
+        :rtype: list[str]
+        """
+
         resolv = Resolv(self.logger, self.config, self.args)
         self.nameserver_ips = resolv.get_elements()
-        self.logger.debug("Got elements for resolver: %s" % json.dumps(self.nameserver_ips))
-        return self.add_berserker_ips_to_nameservers()
+        self.logger.debug(
+            "Got elements for resolver: %s",
+            json.dumps(self.nameserver_ips),
+        )
+        raw_config = dict(DEFAULT_RESOLVER_CONFIG)
+        raw_config.update(dict(self.config.get("resolver", {})))
+        fallback_nameservers = list(self.config["berserker_ips"])
+        if "fallback_nameservers" in raw_config:
+            fallback_nameservers = list(raw_config["fallback_nameservers"])
+        return self._build_nameserver_list(raw_config, fallback_nameservers)
 
-    def get_all_sets(self):
-        return self.config['sets'].keys()
+    def get_all_sets(self) -> list[str]:
+        """Return configured set names.
 
-    def update_sets(self):
+        :return: Configured set names.
+        :rtype: list[str]
+        """
+
+        return list(self.config["sets"].keys())
+
+    def update_sets(self) -> None:
+        """Update all requested sets."""
+
         self.update_set(self.dns_ips_set_name, self.update_dns_ips())
         self.set_dns_resolver()
         if not self.sets:
             self.logger.info("No sets passed, updating all sets")
             self.sets = self.get_all_sets()
+        self.prefetch_dns_hostnames(self.sets)
         for set_name in self.sets:
-            # The DNS IPs set must be skipped -- it is required in config, but
-            # is handled by a special case first.
-            if set_name != self.dns_ips_set_name:
-                if set_name in self.config['sets']:
-                    elements = self.fetch_set_elements(set_name)
-                    self.update_set(set_name, elements)
-                else:
-                    raise KeyError("Invalid set: %s" % set_name)
+            # The DNS IPs set must be skipped here because it is updated first
+            # as a special case to establish resolver nameservers.
+            if set_name == self.dns_ips_set_name:
+                continue
+            if set_name not in self.config["sets"]:
+                raise KeyError(f"Invalid set: {set_name}")
+            elements = self.fetch_set_elements(set_name)
+            self.update_set(set_name, elements)
+
+    def prefetch_dns_hostnames(self, set_names: list[str]) -> None:
+        """Prefetch DNS hostnames across selected built-in plugins.
+
+        :param set_names: Set names selected for this run.
+        :type set_names: list[str]
+        """
+
+        if self.resolver is None:
+            raise RuntimeError("Resolver must be initialized before prefetching")
+        hostnames: list[str] = []
+        for set_name in set_names:
+            if set_name == self.dns_ips_set_name:
+                continue
+            if set_name not in self.config["sets"]:
+                continue
+            plugin_hostnames = self.collect_plugin_hostnames(set_name)
+            hostnames.extend(sorted(plugin_hostnames))
+        if hostnames:
+            self.resolver.prefetch(list(dict.fromkeys(hostnames)))
+
+    def collect_plugin_hostnames(self, set_name: str) -> set[str]:
+        """Collect hostnames for one plugin if it exposes the optional hook.
+
+        :param set_name: Set name to inspect.
+        :type set_name: str
+        :return: Hostnames declared by the plugin.
+        :rtype: set[str]
+        """
+
+        set_config = self.get_set_config(set_name)
+        plugin = self.load_plugin(str(set_config["plugin"]))
+        metadata = dict(set_config.get("metadata", {}))
+        instance = plugin["class"](
+            metadata,
+            self.resolver,
+            plugin["logger"],
+            self.config,
+            self.args,
+        )
+        collect_hostnames = getattr(instance, "collect_hostnames", None)
+        if not callable(collect_hostnames):
+            return set()
+        hostnames = collect_hostnames()
+        return {str(hostname) for hostname in hostnames}
+
+    def _load_plugin_module(self, plugin_name: str, module_path: Path) -> ModuleType:
+        """Load one plugin module from disk.
+
+        :param plugin_name: Plugin module name.
+        :type plugin_name: str
+        :param module_path: Plugin module path.
+        :type module_path: pathlib.Path
+        :return: Imported module object.
+        :rtype: types.ModuleType
+        :raises RuntimeError: If the module cannot be imported.
+        """
+
+        spec = importlib.util.spec_from_file_location(plugin_name, module_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Could not load plugin spec for {plugin_name}: {module_path}")
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except SyntaxError as error:
+            raise SyntaxError(f"Plugin: {plugin_name} ({module_path}) -- {error}") from error
+        except Exception as error:
+            raise RuntimeError(f"Plugin: {plugin_name} ({module_path}) -- {error}") from error
+        return module

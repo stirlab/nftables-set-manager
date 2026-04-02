@@ -1,33 +1,66 @@
-import sys
-sys.path.append('..')
+from __future__ import annotations
+
+"""Plugin for resolving configured hostnames to IPv4 addresses."""
+
+from typing import Any
+
 from plugins import Plugin
 
+
 class GetElements(Plugin):
+    """Resolve configured hostnames into nftables set elements."""
 
-    def __init__(self, metadata, resolver, logger, config, args):
+    def __init__(
+        self,
+        metadata: dict[str, Any],
+        resolver: Any,
+        logger: Any,
+        config: dict[str, Any],
+        args: Any,
+    ) -> None:
+        """Initialize the plugin.
+
+        :param metadata: Per-set metadata.
+        :type metadata: dict[str, Any]
+        :param resolver: Shared DNS resolver.
+        :type resolver: Any
+        :param logger: Plugin logger.
+        :type logger: Any
+        :param config: Full application config.
+        :type config: dict[str, Any]
+        :param args: Parsed command line args.
+        :type args: Any
+        """
+
         super().__init__(metadata, resolver, logger, config, args)
-        self.ignore_missing_hosts = 'ignore_missing_hosts' in metadata and metadata['ignore_missing_hosts']
+        self.ignore_missing_hosts = bool(metadata.get("ignore_missing_hosts", False))
+        self.hostnames = [str(hostname) for hostname in metadata.get("hostnames", [])]
 
-    def get_elements(self):
-        elements = []
-        for hostname in self.metadata['hostnames']:
-            ips = []
-            self.logger.debug("Looking up IPs for hostname: %s" % hostname)
+    def collect_hostnames(self) -> set[str]:
+        """Return hostnames for manager prefetch.
+
+        :return: Hostnames needing DNS resolution.
+        :rtype: set[str]
+        """
+
+        return {hostname for hostname in self.hostnames if not self.is_ipv4_address(hostname)}
+
+    def get_elements(self) -> list[str]:
+        """Resolve configured hostnames into IPv4 elements.
+
+        :return: IPv4 set elements.
+        :rtype: list[str]
+        """
+
+        elements: list[str] = []
+        for hostname in self.hostnames:
+            self.logger.debug("Looking up IPs for hostname: %s", hostname)
             try:
-                ips = self.get_hostname_ips(hostname)
-            except Exception as err:
+                elements.extend(self.resolve_hostname_ips(hostname))
+            except Exception as error:
                 if self.ignore_missing_hosts:
-                    pass
-                else:
-                    raise RuntimeError("Could not retrieve IPs for hostname %s: %s" % (hostname, err))
-            elements.extend(ips)
-        return elements
-
-    def get_hostname_ips(self, hostname):
-        if self.is_ipv4_address(hostname):
-            return [hostname]
-        result = self.resolver.query(hostname)
-        ips = [elem.to_text() for elem in result]
-        if self.cache_ips():
-            ips = self.rebuild_cached_ips(hostname, ips)
-        return ips
+                    continue
+                raise RuntimeError(
+                    f"Could not retrieve IPs for hostname {hostname}: {error}",
+                ) from error
+        return sorted(dict.fromkeys(elements))
