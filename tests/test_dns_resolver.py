@@ -9,7 +9,12 @@ from typing import Any, cast
 
 import pytest
 # pyright: reportImplicitRelativeImport=false
-from dns_resolver import DnsResolver, DomainResolutionError, ResolverConfig
+from dns_resolver import (
+    DnsResolver,
+    DomainResolutionError,
+    ResolverConfig,
+    get_default_max_workers,
+)
 
 
 class FakeDnsException(Exception):
@@ -88,6 +93,27 @@ def build_resolver(
         backend_factory=lambda: FakeBackend(handler),
         dns_exception_type=FakeDnsException,
     )
+
+
+@pytest.mark.parametrize(
+    ("cpu_count", "expected"),
+    [
+        (None, 4),
+        (2, 4),
+        (8, 16),
+        (64, 16),
+    ],
+)
+def test_get_default_max_workers_is_adaptive(
+    monkeypatch: pytest.MonkeyPatch,
+    cpu_count: int | None,
+    expected: int,
+) -> None:
+    """The adaptive worker default should stay conservative across host sizes."""
+
+    monkeypatch.setattr("dns_resolver.os.cpu_count", lambda: cpu_count)
+
+    assert get_default_max_workers() == expected
 
 
 def test_query_uses_explicit_nameserver() -> None:

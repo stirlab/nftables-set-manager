@@ -381,6 +381,46 @@ def test_set_manager_populates_legacy_berserker_ips_default() -> None:
     ]
 
 
+def test_build_resolver_config_uses_adaptive_worker_default(
+    monkeypatch: MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    """The manager should use and log the omitted resolver defaults."""
+
+    FakeResolver.instances = []
+    monkeypatch.setattr("set_manager.get_default_max_workers", lambda: 6)
+    monkeypatch.setattr("set_manager.DnsResolver", FakeResolver)
+    monkeypatch.setattr("set_manager.Resolv", FakeResolv)
+    monkeypatch.setattr("set_manager.NftablesSet", FakeNftablesSet)
+
+    manager = SetManager(build_args(Path("plugins")), build_config())
+
+    with caplog.at_level(logging.INFO):
+        manager.update_dns_ips()
+        manager.set_dns_resolver()
+
+    resolver = FakeResolver.instances[-1]
+    assert resolver.config.max_workers == 6
+    assert resolver.config.tries_per_nameserver == 4
+    assert "Using resolver settings:" in caplog.text
+    assert "max_workers=6" in caplog.text
+    assert "tries_per_nameserver=4" in caplog.text
+
+
+def test_build_resolver_config_keeps_explicit_worker_override() -> None:
+    """An explicit max_workers setting should override the adaptive default."""
+
+    manager = SetManager(
+        build_args(Path("plugins")),
+        {
+            **build_config(),
+            "resolver": {"max_workers": 11},
+        },
+    )
+
+    assert manager.build_resolver_config().max_workers == 11
+
+
 def test_apt_list_keeps_ipv4_literals_in_final_elements(monkeypatch: MonkeyPatch) -> None:
     """APT plugin should exclude IPv4 literals from prefetch but keep them in output."""
 

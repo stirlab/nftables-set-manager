@@ -35,7 +35,7 @@ Several plugins come with the pagkage:
     nft add set inet filter dns_ips { type ipv4_addr\;}
     ```
  2. Create a ```config.yaml``` (see  [config.sample.yaml](config.sample.yaml) for format), and configure the sets you want to manage
-    DNS resolver behavior can also be tuned with the top-level ```resolver``` config block. The legacy ```berserker_ips``` setting and ```--berserk``` CLI switch are still supported for fallback public resolvers.
+    DNS resolver behavior can also be tuned with the top-level ```resolver``` config block. If ```resolver.max_workers``` is omitted, the built-in DNS resolver uses a conservative worker limit based on available CPU cores, with a minimum of 4 workers and a maximum of 16. The legacy ```berserker_ips``` setting and ```--berserk``` CLI switch are still supported for fallback public resolvers.
  3. Run ```manage-sets.py --help``` to see the arguments for the script
  4. See [plugins/example.py](plugins/example.py) for an example of how to write a custom plugin.
  5. Consider setting up a cron job to automatically update your sets

@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 import importlib
 import logging
+import os
 import random
 import re
 import threading
@@ -31,12 +32,23 @@ DEFAULT_FALLBACK_NAMESERVERS = [
     # Quad9.
     "9.9.9.9",
 ]
-DEFAULT_MAX_WORKERS = 128
+DEFAULT_MAX_WORKERS_CAP = 16
+DEFAULT_MAX_WORKERS_FLOOR = 4
 DEFAULT_TIMEOUT_SECONDS = 3.0
-DEFAULT_TRIES_PER_NAMESERVER = 48
+DEFAULT_TRIES_PER_NAMESERVER = 4
 DEFAULT_RECORD_TYPE = "A"
 WWW_PATTERN = re.compile(r"(?:www\.){1}(.+\..+)", re.IGNORECASE)
 WWW_COMBINE_PATTERN = re.compile(r"(?:www\.)?(.+\..+)", re.IGNORECASE)
+
+
+def get_default_max_workers() -> int:
+    """Return the adaptive default worker count for bulk DNS resolution."""
+
+    cpu_count = os.cpu_count() or 1
+    return min(
+        DEFAULT_MAX_WORKERS_CAP,
+        max(DEFAULT_MAX_WORKERS_FLOOR, cpu_count * 2),
+    )
 
 
 @dataclass(slots=True)
@@ -69,7 +81,7 @@ class ResolverConfig:
     )
     tries_per_nameserver: int = DEFAULT_TRIES_PER_NAMESERVER
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
-    max_workers: int = DEFAULT_MAX_WORKERS
+    max_workers: int = field(default_factory=get_default_max_workers)
     record_type: str = DEFAULT_RECORD_TYPE
     verbose: bool = False
     www: bool = False

@@ -14,6 +14,7 @@ from dns_resolver import (
     DEFAULT_FALLBACK_NAMESERVERS,
     DnsResolver,
     ResolverConfig,
+    get_default_max_workers,
 )
 from nftables_set import NftablesSet
 from resolv import Resolv
@@ -22,11 +23,10 @@ from resolv import Resolv
 DEFAULT_DNS_IPS_SET_NAME = "dns_ips"
 DEFAULT_RESOLVER_CONFIG = {
     "include_fallback_nameservers": False,
-    "max_workers": 128,
     "nameservers_from_resolv": True,
     "record_type": "A",
     "timeout_seconds": 3.0,
-    "tries_per_nameserver": 48,
+    "tries_per_nameserver": 4,
     "verbose": False,
     "www": False,
     "www_combine": False,
@@ -215,9 +215,19 @@ class SetManager:
         """Create the internal DNS resolver from merged configuration."""
 
         resolver_config = self.build_resolver_config()
-        self.logger.debug(
-            "Resolver will use DNS IPs: %s",
+        self.logger.info(
+            "Using resolver settings: nameservers=%s fallback_nameservers=%s "
+            "tries_per_nameserver=%d timeout_seconds=%.3f max_workers=%d "
+            "record_type=%s verbose=%s www=%s www_combine=%s",
             json.dumps(resolver_config.nameservers),
+            json.dumps(resolver_config.fallback_nameservers),
+            resolver_config.tries_per_nameserver,
+            resolver_config.timeout_seconds,
+            resolver_config.max_workers,
+            resolver_config.record_type,
+            resolver_config.verbose,
+            resolver_config.www,
+            resolver_config.www_combine,
         )
         self.resolver = DnsResolver(config=resolver_config, logger=self.logger)
 
@@ -239,7 +249,7 @@ class SetManager:
             fallback_nameservers=fallback_nameservers,
             tries_per_nameserver=int(raw_config["tries_per_nameserver"]),
             timeout_seconds=float(raw_config["timeout_seconds"]),
-            max_workers=int(raw_config["max_workers"]),
+            max_workers=int(raw_config.get("max_workers", get_default_max_workers())),
             record_type=str(raw_config["record_type"]),
             verbose=bool(raw_config["verbose"]),
             www=bool(raw_config["www"]),
